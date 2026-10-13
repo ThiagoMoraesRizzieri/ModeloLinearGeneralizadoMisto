@@ -104,3 +104,6 @@ Isso significa que a chance de desenvolver sintomas do HIV no grupo que adia o t
 
 amento com AZT é aproximadamente 2,06 vezes a chance do grupo que recebe a medicação imediatamente. O intervalo de 95% de confiança gerado varia de 1,20 a 3,59, nos dando a certeza estatística de que atrasar o tratamento efetivamente aumenta o risco do paciente.
 
+
+A razão de chances (Odds Ratio) para a variável de adiamento do tratamento é de aproximadamente 2,06. Isto significa que a probabilidade de desenvolver sintomas do HIV no grupo que adia o tratamento com AZT é cerca de 2 vezes superior à do grupo que recebe a medicação imediatamente. O intervalo de confiança a 95% varia entre 1,20 e 3,59, o que nos fornece fortes evidências estatísticas de que atrasar o tratamento aumenta significativamente o risco para o paciente.
+
