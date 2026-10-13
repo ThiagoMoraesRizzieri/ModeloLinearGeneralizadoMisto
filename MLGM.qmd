@@ -1,0 +1,558 @@
+---
+title: "Modelos Lineares Generalizados Mistos"
+format: pdf
+editor: visual
+---
+
+# Slide 01
+
+Os Modelos Lineares Generalizados (MLG) estendem o modelo linear clássico ao admitir distribuições diferentes da normal, desde que pertençam à família exponencial, e ao modelar funções da média de maneira linear através dos parâmetros. O modelo unifica respostas lineares e não lineares sob uma mesma estrutura, composta por três partes:  
+
+Componente aleatório: Identifica a variável resposta e assume que as observações independentes seguem o mesmo tipo de distribuição na família exponencial.   
+
+Componente sistemático: Relaciona um preditor linear com as variáveis explicativas através de um modelo linear ($\eta_i = X_i \beta$).   
+
+Função de ligação: A função matemática $g$ que conecta o componente sistemático ao componente aleatório, permitindo $g(\mu_i) = \eta_i$.   
+
+Abaixo está a estruturação em código R para os três exemplos práticos focados nas diferentes distribuições apresentadas no material.
+
+Códigos de exemplos feitos em aula:
+
+## Exemplo 01: Epidemia (Dados de Contagem)
+
+Na fase inicial de uma epidemia, a taxa de novos casos diários aumenta exponencialmente com o tempo. Como a resposta avaliada é uma contagem de casos, a distribuição adequada é a de Poisson, denotada por $Y_i \sim \mathcal{P}(\mu_i)$. Para linearizar essa relação, aplica-se a função de ligação logarítmica, resultando no modelo $\log(\mu_i) = \beta_0 + \beta_1 t_i$.
+
+```{r}
+# Estrutura teórica no R (assumindo um banco de dados 'dados_epidemia' com variáveis 'casos' e 'tempo')
+# O modelo utiliza a família Poisson e a função de ligação (link) logarítmica.
+modelo_epidemia <- glm(casos ~ tempo, family = poisson(link = "log"), data = dados_epidemia)
+summary(modelo_epidemia)
+```
+
+## Exemplo 2: Doença Arterial Coronariana (Dados Binários)
+
+Neste estudo, a variável resposta avalia a presença (1) ou ausência (0) da Doença Arterial Coronariana (EAC) em relação à idade. A variável aleatória segue uma distribuição de Bernoulli, modelada como $Y_i \sim B(1, p_i)$. A relação entre a probabilidade de apresentar a doença e a idade tem o formato de S, motivo pelo qual a função logit, $\log(\frac{p}{1-p})$, é aplicada para garantir a linearidade. Os resultados do ajuste indicam que um aumento na idade resulta no aumento da probabilidade da doença.   
+
+
+
+```{r}
+# Criando os dados agrupados idênticos à tabela de proporções do material
+dados_eac_agrupados <- data.frame(
+  faixa_etaria = c("20-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-69"),
+  eac_presente = c(1, 2, 3, 5, 6, 5, 13, 8),
+  total = c(10, 15, 12, 15, 13, 8, 17, 10)
+)
+
+# Calculando a proporção de indivíduos com a doença por faixa etária
+dados_eac_agrupados$proporcao <- dados_eac_agrupados$eac_presente / dados_eac_agrupados$total
+
+# Para replicar exatamente o modelo logístico apresentado na saída original (com n = 99 observações)
+# Assume-se a base de dados individual com a variável resposta binária "EAC" e explicativa "Edad".
+# modelo_eac <- glm(EAC ~ Edad, family = binomial(link = "logit"), data = dados_eac)
+
+# A saída original indicou o intercepto _cons de -5.276269 e o coeficiente da idade de 0.1102545[cite: 2]
+# summary(modelo_eac)
+
+# Para replicar o comando de eform (Odds Ratios) que resulta na estimativa de 1.116562 para a idade[cite: 2]
+# exp(coef(modelo_eac))
+```
+
+## Exemplo 3: Vacinação contra a Gripe (Tabela de Contingência)
+
+O último exemplo examina a associação entre contrair ou não a gripe e receber a vacina em duas sessões, em uma única sessão, ou não se vacinar[cite: 2]. Para modelar a frequência nas celdas (dados de contagem nas partições), utiliza-se um modelo log-linear com distribuição de Poisson: $Y_{ij} \sim \mathcal{P}(\mu_{ij})$ e função de ligação logarítmica[cite: 2]. O modelo de independência assume $\log(\mu_{ij}) = \mu + \alpha_i + \beta_j$, e caso haja associação entre as categorias, um fator de interação $\gamma_{ij}$ deve ser incorporado
+
+
+
+
+```{r}
+# Estruturando os totais cruzados fornecidos na tabela[cite: 2]
+dados_vacina <- data.frame(
+  vacinacao = rep(c("Nao", "Uma", "Duas"), times = 2),
+  estado = rep(c("Gripe", "Nao_gripe"), each = 3),
+  frequencia = c(24, 9, 13, 289, 100, 565) # Contagens das celdas[cite: 2]
+)
+
+# Ajuste do Modelo Log-linear de Independência (Apenas Efeitos Principais)[cite: 2]
+modelo_independencia <- glm(frequencia ~ vacinacao + estado, 
+                            family = poisson(link = "log"), 
+                            data = dados_vacina)
+
+# Ajuste do Modelo Log-linear com Associação (Adicionando o termo de Interação gamma)[cite: 2]
+modelo_associacao <- glm(frequencia ~ vacinacao * estado, 
+                         family = poisson(link = "log"), 
+                         data = dados_vacina)
+
+# Para verificar qual abordagem descreve melhor os dados e testar a hipótese de associação
+summary(modelo_independencia)
+summary(modelo_associacao)
+```
+
+(os slides 2, 3, 4, 5 e 6 são mais sobre a teoria de MLG)
+
+
+
+Tem um exemplo interessante envolvendo binomial(mi,pi) com a probito em algum slide...
+
+
+
+# Exemplos de modelo linear generalizado
+
+
+
+```{r}
+dosis <- c(1, 2, 4, 8, 16, 32)
+muertos <- c(1, 5, 17, 23, 33, 36)
+total <- rep(40, 6)
+prop <- muertos / total
+log2d <- c(0, 1, 2, 3, 4, 5) # Transformação log2(dosis)
+datos <- data.frame(dosis, muertos, total, prop, log2d)
+head(datos)
+```
+
+Temos uma quantidade de mortos para um total de 40 indivíduos fixo para cada dose.
+
+```{r}
+plot(datos$dosis, datos$prop, xlab = "dosis", ylab = "Proporcion de Muertos", pch = 16)
+text(datos$dosis, datos$prop, labels = datos$muertos, pos = 4)
+```
+
+
+```{r}
+# Dispersão usando log2d
+plot(datos$log2d, datos$prop, xlab = "log2d", ylab = "prop", pch = 16)
+```
+
+Vamos utilizar o modelo binomial para modelar a proporção de mortos pelo $log_2(dose)$
+
+
+```{r}
+fit_logit <- glm(cbind(muertos, total - muertos) ~ log2d, 
+                 data = datos, family = binomial(link = "logit"))
+summary(fit_logit)
+```
+Vemos que a variável é significativa para modelar essa proporção.
+
+```{r}
+AIC(fit_logit) 
+BIC(fit_logit)
+```
+
+Mudando para o probit, vamos ver o que acontece:
+
+```{r}
+fit_probit <- glm(cbind(muertos, total - muertos) ~ log2d, 
+                  data = datos, family = binomial(link = "probit"))
+summary(fit_probit)
+```
+
+
+```{r}
+AIC(fit_probit) 
+BIC(fit_probit)
+```
+
+Mudança muito pequena para esse outro tipo de função de ligação que requer uma interpretação mais elaborada...
+
+
+Mudando para o complemento log-log:
+
+```{r}
+fit_cloglog <- glm(cbind(muertos, total - muertos) ~ log2d, 
+                   data = datos, family = binomial(link = "cloglog"))
+summary(fit_cloglog)
+```
+
+```{r}
+AIC(fit_cloglog)
+BIC(fit_cloglog)
+```
+
+Nesse caso, piorou mais. Ficamos com a primeira opção.
+
+
+
+## Exercício 6:
+
+Tempo de sobrevivência para diferentes tipos de câncer:
+
+```{r}
+library(readxl)
+dados6 <- read_xlsx("SobrevidaTumor.xlsx")
+head(dados6)
+```
+
+```{r}
+str(dados6)
+```
+
+
+```{r}
+library(tidyr)
+
+dados6_long <- pivot_longer(
+  data = dados6,
+  cols = everything(), # The columns you want to pivot
+  names_to = "Tipos_cancer", # Name of the new column for old header names
+  values_to = "Meses" # Name of the new column for the cell values
+)
+
+dados6_long$Tipos_cancer <-  as.factor(dados6_long$Tipos_cancer)
+
+head(dados6_long)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(dados6_long, aes(y = Meses ,fill =Tipos_cancer))+
+  geom_boxplot()
+```
+
+Obtendo estatísticas para cada caso:
+
+```{r}
+library(dplyr)
+
+dados6_long %>%
+  group_by(Tipos_cancer) %>%
+  summarise(
+    mean = mean(Meses, na.rm = TRUE),
+    sd = sd(Meses, na.rm = TRUE),
+    min = min(Meses, na.rm = TRUE),
+    max = max(Meses, na.rm = TRUE),
+    cv = sd(Meses, na.rm = TRUE) / mean(Meses, na.rm = TRUE)
+  )
+```
+
+CV são todos bem próximos!! Isso é um alerta para ser um problema para a distribuição normal. O CV não é influenciado pela média.
+
+Vemos também a presença de assimetria que pode ser visualizado também pelo gráfico de distribuição.
+
+```{r}
+ggplot(dados6_long, aes(x = Meses, fill = Tipos_cancer))+
+  geom_density()+
+  facet_wrap(~ Tipos_cancer)
+```
+
+
+```{r}
+# Modelo classico normal
+modelo_reg <- lm(Meses ~ Tipos_cancer, data = dados6_long)
+summary(modelo_reg)
+
+# estat ic (AIC e BIC)
+AIC(modelo_reg)
+BIC(modelo_reg)
+```
+
+
+```{r}
+# glm Tiempo i.Tumor, family(gamma) link(identity)
+modelo_glm1 <- glm(Meses ~ Tipos_cancer, family = Gamma(link = "identity"), data = dados6_long)
+summary(modelo_glm1)
+
+AIC(modelo_glm1)
+BIC(modelo_glm1)
+```
+
+```{r}
+# Deviance
+dev_residual <- deviance(modelo_glm1)
+
+# Parâmetro de dispersão (Phi)
+# No R, ele é estimado por padrão usando os resíduos de Pearson e 
+phi <- summary(modelo_glm1)$dispersion
+
+# Scaled Deviance (Deviance Escalada)
+scaled_dev <- dev_residual / phi
+
+# Imprimindo os resultados no console
+cat("Deviance Residual:   ", dev_residual, "\n")
+cat("Parâmetro Dispersão: ", phi, "\n")
+cat("Scaled Deviance:     ", scaled_dev, "\n")
+```
+
+
+```{r}
+# (Deviance do modelo apenas com o intercepto)
+dev_nula <- modelo_glm1$null.deviance
+cat("Null Deviance:       ", dev_nula, "\n")
+```
+
+
+
+
+```{r}
+# glm Tiempo ib(5).Tumor, family(gamma) link(pow -1)
+# Definimos a categoria do Ovário como a referência (base)
+dados6_long$Tipos_cancer <- relevel(dados6_long$Tipos_cancer, ref = "Ovario")
+```
+
+
+```{r}
+# Pow -1 é equivalente ao link "inverse" no R
+modelo_glm2 <- glm(Meses ~ Tipos_cancer, family = Gamma(link = "inverse"), data = dados6_long)
+summary(modelo_glm2)
+AIC(modelo_glm2)
+BIC(modelo_glm2)
+```
+
+
+```{r}
+modelo_glm2 <- glm(Meses ~ Tipos_cancer, family = Gamma(link = "log"), data = dados6_long)
+summary(modelo_glm2)
+AIC(modelo_glm2)
+BIC(modelo_glm2)
+```
+
+
+```{r}
+# ==========================================
+# Diagnostico del modelo Gamma (usando modelo_glm2)
+# ==========================================
+
+# predict media (valores preditos na escala de resposta)
+df$media <- fitted(modelo_glm2) 
+# ou: df$media <- predict(modelo_glm2, type = "response")
+
+# predict res, dev (resíduos deviance)
+df$res <- residuals(modelo_glm2, type = "deviance")
+
+# twoway (scatter media res)
+# No R, usualmente plotamos Resíduos (y) vs Preditos (x)
+ggplot(df, aes(x = media, y = res)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(x = "Média Predita", y = "Resíduos Deviance")
+
+# pnorm res (Gráfico de probabilidade normal Q-Q plot)
+ggplot(df, aes(sample = res)) +
+  stat_qq() +
+  stat_qq_line(color = "red") +
+  theme_minimal() +
+  labs(title = "Gráfico de Probabilidade Normal (Q-Q Plot)")
+
+# ==========================================
+# Grafico ilustrativo
+# ==========================================
+
+# margins r.Tumor, asbalanced
+margens <- emmeans(modelo_glm2, ~ Tumor)
+summary(margens)
+
+# marginsplot, xdimension(Tumor)
+plot(margens) + 
+  theme_minimal() +
+  labs(x = "Tumor", y = "Marginal Linear Predictions")
+```
+
+(Podemos testar incluir uma variável numérica)
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Aula
+
+## MLGM para dados de contagem
+
+
+
+
+```{r}
+# Instale os pacotes caso não os tenha:
+# install.packages(c("lme4", "ggplot2", "dplyr"))
+
+library(lme4)
+library(ggplot2)
+library(dplyr)
+
+library(haven)
+
+# Carregar o banco de dados
+dados <- read_dta("lips.dta")
+head(dados)
+```
+
+
+```{r}
+str(dados)
+```
+
+
+```{r}
+# Garantir que a variável de agrupamento seja um fator
+dados$area <- as.factor(dados$area)
+```
+
+
+```{r}
+# ==========================================
+# SMR Observada (Standardized Mortality Ratio)
+# ==========================================
+
+# gen smr_obs=o/e
+dados$smr_obs <- dados$o / dados$e
+
+# sum smr, det
+summary(dados$smr_obs)
+quantile(dados$smr_obs, probs = c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1))
+```
+
+
+```{r}
+# ==========================================
+# Modelo Poisson Misto (Apenas Intercepto Aleatório)
+# ==========================================
+
+# mepoisson o , offset(lne) || area: ,irr
+m0 <- glmer(o ~ 1 + (1 | area), 
+            offset = lne, 
+            family = poisson(link = "log"), 
+            data = dados)
+
+summary(m0)
+```
+
+
+```{r}
+# Para obter a Razão de Incidência de Taxas (IRR / eform do Stata):
+exp(fixef(m0))
+```
+
+
+```{r}
+# ==========================================
+# Estimando Efeitos Aleatórios e SMR Ajustada
+# ==========================================
+
+# predict ebmoda, reffects ebmode
+# Extrai os efeitos aleatórios (interceptos por área)
+ebmoda <- ranef(m0)$area$`(Intercept)`
+head(ebmoda)
+```
+
+
+```{r}
+# gen smr_est=exp(1.084+ebmoda)
+# No R, extraímos o valor exato do intercepto fixo (1.084) via fixef(m0)[1]:
+beta0 <- fixef(m0)[1]
+beta0
+```
+
+
+```{r}
+# Criando a tabela com as SMRs estimadas por área
+dados_area <- data.frame(
+  area = rownames(ranef(m0)$area),
+  ebmoda = ebmoda
+) %>%
+  mutate(smr_est = exp(beta0 + ebmoda))
+
+# sum smr_est, det
+summary(dados_area$smr_est)
+quantile(dados_area$smr_est, probs = c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1))
+```
+
+
+```{r}
+# ==========================================
+# Modelo Poisson Misto com Covariável (Exposição Solar)
+# ==========================================
+
+# mepoisson o x , offset(lne) || area:, irr
+m1 <- glmer(o ~ x + (1 | area), 
+            offset = lne, 
+            family = poisson(link = "log"), 
+            data = dados)
+
+summary(m1)
+```
+
+
+```{r}
+# IRR do modelo com covariável:
+exp(fixef(m1))
+```
+
+
+```{r}
+# ==========================================
+# Diagnóstico do Modelo com Covariável
+# ==========================================
+
+# predict ebmoda_x, reffects ebmode
+ebmoda_x <- ranef(m1)$area$`(Intercept)`
+```
+
+
+```{r}
+# qnorm ebmoda_x
+ggplot(data.frame(ebmoda_x), aes(sample = ebmoda_x)) +
+  stat_qq() +
+  stat_qq_line(color = "blue") +
+  theme_minimal() +
+  labs(title = "Q-Q Plot: Efeitos Aleatórios (ebmoda_x)")
+```
+
+
+```{r}
+# predict res, dev
+dados$res <- residuals(m1, type = "deviance")
+
+# predict media
+dados$media <- predict(m1, type = "response")
+
+# twoway (scatter res media)
+ggplot(dados, aes(x = media, y = res)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(x = "Média Predita (Casos Esperados Ajustados)", y = "Resíduos Deviance")
+```
+
+
+```{r}
+# ==========================================
+# Identificação de Dados Atípicos (Outliers)
+# ==========================================
+
+# list area if res < -1.5
+outliers <- dados %>% 
+  filter(res < -1.5) %>% 
+  select(area, o, e, media, res)
+
+print(outliers)
+```
+
+
+```{r}
+# list media o in 55/56
+dados %>% 
+  slice(55:56) %>% 
+  select(area, media, o, res)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

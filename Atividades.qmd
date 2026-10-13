@@ -1,0 +1,1241 @@
+---
+title: "Atividades"
+format: pdf
+editor: visual
+---
+
+
+
+# Exercício 3:
+
+Os seguintes dados descrevem a mortalidade de besouros adultos Tribolium confusum após terem sido submetidos por 5 horas a CS2 (dissulfeto de carbono), em diferentes concentrações.
+
+```{r}
+dados_ex3 <- data.frame(
+  ln_dose = c(1.6907, 1.7242, 1.7552, 1.7842, 1.8113, 1.8369, 1.8610, 1.8839),
+  Mortos = c(6, 13, 18, 28, 52, 53, 61, 60),
+  Total = c(59, 60, 62, 56, 63, 59, 62, 60)
+)
+
+head(dados_ex3)
+```
+
+
+a- Faça um gráfico da proporção de indivíduos mortos em função do logaritmo da dose.
+
+```{r}
+plot(x = dados_ex3$ln_dose, y = dados_ex3$Mortos/dados_ex3$Total)
+```
+
+
+b- Ajuste um modelo linear generalizado adequado para este conjunto de dados, verificando a função de ligação utilizada.
+
+```{r}
+dados_ex3$Vivos <- dados_ex3$Total - dados_ex3$Mortos
+
+modelo_ex3 <- glm(cbind(Mortos, Vivos) ~ ln_dose,
+                  family = binomial(link = "logit"), data = dados_ex3)
+
+summary(modelo_ex3)
+```
+
+```{r}
+11.232/6
+```
+
+
+```{r}
+plot(modelo_ex3)
+```
+
+
+
+
+```{r}
+dados_ex3$Vivos <- dados_ex3$Total - dados_ex3$Mortos
+
+modelo_ex3 <- glm(cbind(Mortos, Vivos) ~ ln_dose,
+                  family = binomial(link = "probit"), data = dados_ex3)
+
+summary(modelo_ex3)
+```
+
+```{r}
+10.12/6
+```
+
+
+
+c- Com as estimativas obtidas, prediga a proporção de besouros mortos quando log(dose) = 1.75 (dose máxima recomendada para o cultivo).
+
+```{r}
+exp(coef(modelo_ex3))
+```
+
+```{r}
+
+```
+
+
+d- Qual é a LD50, ou seja, a dose que provoca a morte de 50% dos indivíduos?
+
+```{r}
+# Para a LD50 (item d), você pode extrair do modelo os coeficientes 
+# e usar a fórmula: LD50 = -beta0 / beta1
+
+as.numeric(-coef(modelo_ex3)[1] / coef(modelo_ex3)[2])
+```
+
+
+
+
+
+# Exercício 5:
+
+A tabela a seguir mostra os resultados de um experimento de toxicidade realizado em indivíduos de Heliothis virescens sob doses de piretroide. Conjuntos de 20 indivíduos de cada sexo foram expostos durante 3 dias ao piretroide e quantificou-se o número de indivíduos em cada conjunto que morreu ou apresentou sintomas de knock (nocaute/paralisia). As doses foram medidas em μg.
+
+
+
+```{r}
+dados_ex5 <- data.frame(
+  Sexo = rep(c("Macho", "Femea"), each = 6),
+  Dose = rep(c(1, 2, 4, 8, 16, 32), times = 2),
+  Afetados = c(1, 4, 9, 13, 18, 20,    # Machos
+               0, 2, 6, 10, 12, 16),   # Fêmeas
+  Total = rep(20, 12)                  # 20 indivíduos por grupo
+)
+
+dados_ex5$Sexo <- as.factor(dados_ex5$Sexo)
+
+head(dados_ex5)
+```
+
+a- Realize uma análise descritiva ilustrando com gráficos.
+
+```{r}
+library(ggplot2)
+
+ggplot(dados_ex5, aes(x = Dose, y = Afetados, color = Sexo))+
+  geom_line()
+```
+
+
+
+b- Dado que as doses são potências de 2, defina o modelo linear generalizado para realizar o ajuste de uma regressão logística usando o logaritmo na base 2 da dose: $log_2(\text{dose})$.
+
+
+```{r}
+dados_ex5$log2_Dose <- log2(dados_ex5$Dose)
+
+ggplot(dados_ex5, aes(x = log2_Dose, y = Afetados, color = Sexo))+
+  geom_line()
+
+```
+
+
+```{r}
+dados_ex5$Nao_Afetados <- dados_ex5$Total - dados_ex5$Afetados
+
+modelo_ex5 <- glm(cbind(Afetados, Nao_Afetados) ~ log2_Dose + Sexo,
+                  family = binomial(link = "logit"), data = dados_ex5)
+
+summary(modelo_ex5)
+```
+
+
+
+
+c- Realize a análise do MLG e obtenha conclusões.
+
+
+```{r}
+6.7571/9
+```
+
+
+# Exercício 8:
+
+Foi realizado um estudo sobre os efeitos do AZT (droga base) na diminuição do desenvolvimento de sintomas do HIV. Um total de 338 adultos infectados com o vírus do HIV, cujos sistemas imunológicos estavam começando a falhar, foram designados aleatoriamente para receber AZT imediatamente ou para esperar até que suas células T evidenciassem uma fraqueza imunológica severa. Os dados apresentados na tabela a seguir mostram o número de sujeitos que desenvolveram ou não sintomas de HIV durante um período de estudo de 3 anos, levando em consideração a raça e se receberam AZT imediatamente ou não.
+
+
+a- Apresente um modelo logit apropriado para esta situação, descrevendo o ajuste realizado e justificando sua escolha.
+b- Interprete os resultados obtidos, realizando estimativas de razões de chances (odds ratios).
+c- Encontre um intervalo de confiança de 95% para a razão de chances de desenvolver sintomas entre aqueles que recebem o tratamento com AZT imediatamente e os que recebem mais tarde.
+
+
+```{r}
+dados_ex8 <- data.frame(
+  Raca = c("Branca", "Branca", "Negra", "Negra"),
+  Tratamento = c("Imediatamente", "Mais_tarde", "Imediatamente", "Mais_tarde"),
+  Com_Sintomas = c(14, 32, 11, 12),
+  Sem_Sintomas = c(93, 81, 52, 43)
+)
+
+# Convertendo variáveis explicativas para fatores
+dados_ex8$Raca <- as.factor(dados_ex8$Raca)
+dados_ex8$Tratamento <- as.factor(dados_ex8$Tratamento)
+```
+
+
+```{r}
+# Como os dados estão agrupados, precisamos modelar as respostas de sucesso e fracasso usando a função cbind()
+
+modelo_ex8 <- glm(cbind(Com_Sintomas, Sem_Sintomas) ~ Raca + Tratamento,
+                  family = binomial(link = "logit"), data = dados_ex8)
+
+summary(modelo_ex8)
+```
+
+
+Observamos que a variável Raça não é significativa para o surgimento de sintomas da HIV.
+
+Podemos pegar o Residual deviance e dividir pelo grau de liberdade para ver se está próximo de 1.
+
+```{r}
+abs(1-1.3835/1)
+```
+
+Sua distância até 1 é de 0.3835, vejamos como o modelo se dispõe se removermos esta variável.
+
+```{r}
+modelo_ex8 <- glm(cbind(Com_Sintomas, Sem_Sintomas) ~ Tratamento,
+                  family = binomial(link = "logit"), data = dados_ex8)
+
+summary(modelo_ex8)
+```
+
+```{r}
+abs(1-1.4206/2)
+```
+
+Temos uma pequena melhoria do modelo, logo, apenas a informação do período de tratamento tem sido relevante para saber sobre os sintomas.
+
+```{r}
+modelo_ex8$fitted.values
+```
+
+
+
+```{r}
+exp(coef(modelo_ex8))
+```
+
+
+
+```{r}
+exp(confint(modelo_ex8))
+```
+
+
+A razão de chances (Odds Ratio) para a variável TratamentoMais_tarde é de 2.058. 
+
+Isso significa que a chance de desenvolver sintomas do HIV no grupo que adia o trat
+
+amento com AZT é aproximadamente 2,06 vezes a chance do grupo que recebe a medicação imediatamente. O intervalo de 95% de confiança gerado varia de 1,20 a 3,59, nos dando a certeza estatística de que atrasar o tratamento efetivamente aumenta o risco do paciente.
+
+
+
+# Exercício 12:
+
+A tabela a seguir apresenta dados sobre afinidade a diferentes partidos políticos, onde as pessoas foram classificadas segundo sexo e raça.
+
+```{r}
+dados_ex12 <- data.frame(
+  Sexo = c("Masculino", "Masculino", "Feminino", "Feminino"),
+  Raca = c("Branca", "Negra", "Branca", "Negra"),
+  Democrata = c(132, 42, 172, 56),
+  Republicano = c(176, 6, 129, 4),
+  Independente = c(127, 12, 130, 15)
+)
+
+dados_ex12$Sexo <- as.factor(dados_ex12$Sexo)
+dados_ex12$Raca <- as.factor(dados_ex12$Raca)
+
+head(dados_ex12)
+
+```
+
+
+Encontre um modelo logit multinomial que se ajuste adequadamente aos dados. Interprete em termos de razões de chances (odds ratios).
+
+
+```{r}
+library(nnet)
+modelo_ex12 <- multinom(cbind(Democrata, Republicano, Independente) ~ Sexo + Raca,
+                        data = dados_ex12)
+
+summary(modelo_ex12)
+```
+
+
+
+
+
+```{r}
+exp(coef(modelo_ex12))
+```
+
+
+```{r}
+exp(confint(modelo_ex12))       
+```
+Homens têm uma chance cerca de 1,77 vezes maior de serem filiados ao partido Republicano (em vez do Democrata) do que as mulheres (OR = 1.773).  
+
+Pessoas de raça negra têm uma chance bem menor de se identificarem como Republicanos (OR = 0.102) ou Independentes (OR = 0.326) em comparação aos Democratas, quando contrastadas com pessoas de raça branca.
+
+
+
+
+# Exercício 9:
+
+```{r}
+dados_ex9 <- data.frame(
+  Trampa = c("Laranja", "Amarelo", "Laranja", "Amarelo"),
+  Sexo = c("Macho", "Macho", "Femea", "Femea"),
+  Y = c(246, 458, 17, 32)
+)
+
+head(dados_ex9)
+
+```
+
+
+
+
+```{r}
+modelo_ex9 <- glm(Y ~ Trampa + Sexo,
+                  family = poisson(link = "log"), data = dados_ex9)
+
+summary(modelo_ex9)
+```
+
+
+
+
+```{r}
+exp(coef(modelo_ex9))
+```
+Os insetos preferem a cor amarela (praticamente o dobro).
+
+
+
+```{r}
+exp(confint(modelo_ex9))
+```
+
+Vamos experimentar adicionar a interação, acabamos perdendo todos os graus de liberdade... Dos 4 dados, temos 4 parâmetros.
+
+Não será possível ver qualidade de ajuste, mas podemos analisar se há efeito significativo.
+
+```{r}
+modelo_ex9 <- glm(Y ~ Trampa + Sexo + Trampa:Sexo,
+                  family = poisson(link = "log"), data = dados_ex9)
+
+summary(modelo_ex9)
+```
+
+Observemos que a interação não é significativa.
+
+```{r}
+predict(modelo_ex9, type = "response")
+```
+
+Vemos que o modelo saturado possui um ajuste perfeito nos dados (mas é perfeito demais).
+
+
+# Exercicio 7:
+
+```{r}
+dados_ex7 <- data.frame(
+  casos = c(12, 14, 33, 50, 67,74, 123, 141, 165, 204, 253, 246, 240),
+  ano = seq.int(1981,1981+12, by = 1)
+)
+
+head(dados_ex7)
+```
+
+```{r}
+plot(x = dados_ex7$ano, y = dados_ex7$casos)
+```
+
+
+```{r}
+modelo_ex7 <- glm(casos ~ ano,
+                  family = poisson(link = "log"), data = dados_ex7)
+
+summary(modelo_ex7)
+```
+```{r}
+AIC(modelo_ex7)
+BIC(modelo_ex7)
+```
+
+
+```{r}
+exp(coef(modelo_ex7))
+```
+
+Cada ano aumenta 22% em relação ao anterior.
+
+```{r}
+predict(modelo_ex7, type = "response")
+```
+```{r}
+dados_ex7$casos
+```
+
+
+Tem problema nas caudas do modelo!!
+
+(Obs do ABrantes, se trocar os anos para um tempo que inicia do t = 1, não muda nada.)
+
+Vamos criar a contagem do tempo e usar a contagem ao quadrado:
+
+```{r}
+dados_ex7$cont <- seq(1,nrow(dados_ex7), by =1)
+dados_ex7$cont2 <- dados_ex7$cont^2
+
+head(dados_ex7)
+```
+
+
+```{r}
+modelo_ex7 <- glm(casos ~ cont + cont2,
+                  family = poisson(link = "log"), data = dados_ex7)
+
+summary(modelo_ex7)
+```
+
+Com a componente quadrática, se ajusta melhor.
+
+```{r}
+AIC(modelo_ex7)
+BIC(modelo_ex7)
+```
+
+
+```{r}
+exp(coef(modelo_ex7))
+```
+
+Cada ano aumenta 74% em relação ao anterior, mas reduz em cerca de 2% em relação ao tempo ao quadrado (depois de muitos anos, se estabiliza).
+
+```{r}
+predict(modelo_ex7, type = "response")
+```
+```{r}
+dados_ex7$casos
+```
+
+
+Bem melhor!!
+
+```{r}
+plot(modelo_ex7)
+```
+
+```{r}
+residuals(modelo_ex7)
+```
+
+
+
+Exericio Normal Inversa:
+
+Análise do IMC de pessoas de diferentes sexos (0 = homem e 1 = mulher), idade e tempo.
+
+
+```{r}
+library(haven)
+
+# Carregar o banco de dados
+df <- read_dta("ejemplo_glm_igaussian.dta")
+df$sexo <- as.factor(df$sexo)
+head(df)
+```
+
+```{r}
+summary(df)
+```
+
+Essa variável tempo é bem assimétrico...
+
+```{r}
+hist(df$tiempo)
+```
+
+
+```{r}
+model <- glm(tiempo ~ edad + sexo + imc, family = inverse.gaussian(link = "log"), data = df)
+
+summary(model)
+```
+
+```{r}
+exp(coef(model))
+```
+
+
+
+```{r}
+model <- glm(tiempo ~ edad + sexo + imc, family = Gamma(link = "log"), data = df)
+
+summary(model)
+```
+
+
+```{r}
+exp(coef(model))
+```
+
+
+
+```{r}
+AIC(model)
+```
+
+```{r}
+model <- glm(tiempo ~ edad * sexo + imc, family = Gamma(link = "log"), data = df)
+
+summary(model)
+```
+
+
+
+```{r}
+exp(coef(model))
+```
+
+
+Exercício envolvendo MLGM:
+
+PAS: Pressão arterial sistólica
+
+30 centros de saúde
+
+Sexo (0: homem e 1: mulher)
+
+```{r}
+library(haven)
+
+# Carregar o banco de dados
+dados <- read_dta("PAS_centrosMLGM_cont.dta")
+dados$sexo <- as.factor(dados$sexo)
+dados$centro <- as.factor(dados$centro)
+head(dados)
+```
+
+
+```{r}
+library(lme4)
+```
+
+```{r}
+table(dados$centro,dados$sexo)
+```
+
+```{r}
+hist(dados$PAS, breaks = 30)
+```
+
+Podemos supor uma dist normal.
+
+
+Não queremos usar o centro como uma variável, é apenas como foi o extrato.
+
+
+
+```{r}
+modelo_misto <- glmer(PAS ~ idade + imc + sexo + (1|centro), data = dados)
+
+summary(modelo_misto)
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+glimpse(dados) # ou str(dados)
+```
+
+
+```{r}
+# graph box PAS, by(sexo centro)
+ggplot(dados, aes(x = as.factor(sexo), y = PAS)) +
+  geom_boxplot() +
+  facet_wrap(~ centro) +
+  theme_minimal() +
+  labs(x = "Sexo", y = "PAS", title = "PAS por Sexo e Centro")
+```
+
+
+```{r}
+# graph box PAS, by(sexo)
+ggplot(dados, aes(x = as.factor(sexo), y = PAS)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(x = "Sexo", y = "PAS")
+```
+
+
+```{r}
+# ==========================================
+# Ajustando modelos mistos (Nível 1: Paciente, Nível 2: Centro)
+# ==========================================
+
+# modelo nulo o modelo de componentes de varianza
+# meglm PAS || centro:, family(gaussian) link(identity)
+# (1 | centro) indica o intercepto aleatório agrupado por centro
+modelo_nulo <- lmer(PAS ~ 1 + (1 | centro), data = dados, REML = FALSE)
+summary(modelo_nulo)
+```
+
+dividimos a variabilidade do centro pela variabilidade total
+
+```{r}
+40.16/(40.16+184.54)
+```
+
+
+Aprox. 18% da variação é responsabilidade do centro de saúde. É a variabilidade entre os centros.
+
+Esse modelo nulo é o básico para entender sobre a variabilidade
+
+```{r}
+confint(modelo_nulo)
+```
+Os ics da variância do efeito aleatório está errado... vamos ver se é arrumado com o ajuste:
+
+```{r}
+ic_dp <- confint(modelo_nulo)
+ic_var <- ic_dp^2
+
+print(ic_var)
+```
+
+
+```{r}
+# componente de varianza relativo a los centros (ICC)
+# Em vez de fazer o "disp" manual, extraímos as variâncias do modelo nulo
+var_comp_nulo <- as.data.frame(VarCorr(modelo_nulo))
+var_centro_nulo <- var_comp_nulo$vcov[var_comp_nulo$grp == "centro"]
+var_resid_nulo <- var_comp_nulo$vcov[var_comp_nulo$grp == "Residual"]
+icc_nulo <- var_centro_nulo / (var_centro_nulo + var_resid_nulo)
+cat("ICC Modelo Nulo:", icc_nulo, "\n")
+```
+
+
+```{r}
+# ==========================================
+# Ajustamos modelo completo
+# ==========================================
+
+# meglm PAS idade i.sexo imc || centro:, family(gaussian) link(identity)
+# estimates store M0
+M0 <- lmer(PAS ~ idade + sexo + imc + (1 | centro), data = dados, REML = FALSE)
+summary(M0)
+```
+
+```{r}
+32/(32+84)
+```
+
+
+```{r}
+# recalcular, de manera ajustada, componente de varianza de Centros
+var_comp_M0 <- as.data.frame(VarCorr(M0))
+var_centro_M0 <- var_comp_M0$vcov[var_comp_M0$grp == "centro"]
+var_resid_M0 <- var_comp_M0$vcov[var_comp_M0$grp == "Residual"]
+icc_ajustado <- var_centro_M0 / (var_centro_M0 + var_resid_M0)
+cat("ICC Ajustado (M0):", icc_ajustado, "\n")
+```
+
+```{r}
+confint(M0)
+```
+
+IC dos efeitos aleatórios:
+
+```{r}
+ic_dp <- confint(M0)
+ic_var <- ic_dp^2
+
+print(ic_var)
+```
+
+```{r}
+# ==========================================
+# Interpretacion de coeficiente aleatorio de edad
+# ==========================================
+
+# meglm PAS idade i.sexo imc || centro: idade, family(gaussian) link(identity)
+# estimates store M1
+# (1 + idade | centro) adiciona tanto a inclinação aleatória para idade quanto o intercepto aleatório
+M1 <- lmer(PAS ~ idade + sexo + imc + (1 + idade | centro), data = dados, REML = FALSE)
+summary(M1)
+```
+
+A idade tem um efeito único dentro dos centros (não foi significativo).
+
+
+
+
+```{r}
+# ==========================================
+# lrtest M0 M1, stats (Teste da Razão de Verossimilhança)
+# ==========================================
+
+# A função anova() aplicada a dois modelos lmer() executa o Teste da Razão de Verossimilhança (LR Test)
+anova(M0, M1)
+```
+
+```{r}
+library(lmtest)
+
+# Executa o Teste da Razão de Verossimilhanças
+lrtest(M0, M1)
+```
+
+Concluímos M0 como melhor.
+
+```{r}
+# Instale o pacote se não o tiver:
+# install.packages("ggeffects")
+library(ggeffects)
+
+# 1. Prever a PAS para um intervalo de idades, fixando as outras variáveis 
+# (o pacote usa a média do IMC e a categoria mais comum de sexo automaticamente)
+previsoes_idade <- ggpredict(M0, terms = "idade")
+print(previsoes_idade)
+plot(previsoes_idade)
+```
+
+
+
+
+```{r}
+# Prever a PAS por Idade, agrupada por Sexo
+previsoes_sexo <- ggpredict(M0, terms = c("idade", "sexo"))
+print(previsoes_sexo)
+plot(previsoes_sexo)
+```
+
+# Exemplo Modelo Misto 2
+
+Longitudinal
+
+Peso de porcos ao longo do tempo.
+
+```{r}
+library(haven)
+
+# Carregar o banco de dados
+dados <- read_dta("animal_dieta.dta")
+
+head(dados)
+```
+
+```{r}
+dim(dados)
+```
+
+Será que a variabilidade dos animais é a mesma para cada semana?
+
+
+```{r}
+# Garantir que a variável de agrupamento (id) seja um fator
+dados$id <- as.factor(dados$id)
+
+# ==========================================
+# Análisis exploratorio
+# ==========================================
+
+# twoway scatter peso semana if id<=10, connect(L)
+dados %>%
+  filter(as.numeric(as.character(id)) <= 10) %>% # Filtra os 10 primeiros IDs
+  ggplot(aes(x = semana, y = peso, group = id, color = id)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Evolução do Peso nas Primeiras Semanas (IDs 1 a 10)",
+       x = "Semana", y = "Peso (kg)")
+```
+
+
+```{r}
+hist(dados$peso, breaks = 30)
+```
+
+
+```{r}
+# ==========================================
+# Modelos: Clássico vs Misto
+# ==========================================
+
+# glm peso semana, family(gaussian) link(identity)
+# estimates store uno
+modelo_uno <- glm(peso ~ semana, family = gaussian(link = "identity"), data = dados)
+summary(modelo_uno)
+```
+
+```{r}
+8294.7/430
+```
+
+
+```{r}
+confint(modelo_uno)
+```
+
+
+```{r}
+# Ajustamos un modelo lineal generalizado misto
+# meglm peso semana || id:, family(gaussian) link(identity)
+# estimates store dos
+# Usamos REML = FALSE (Maximum Likelihood) para bater com os resultados do 'mle' e 'meglm' do Stata
+modelo_dos <- lmer(peso ~ semana + (1 | id), data = dados, REML = FALSE)
+summary(modelo_dos)
+```
+```{r}
+14.817/(14.817+4.383)
+```
+
+Vemos que 77% da variabilidade é o que ocorre dentro de cada sujeito.
+
+
+```{r}
+confint(modelo_dos)
+```
+
+
+```{r}
+# lrtest uno dos (Teste da Razão de Verossimilhança)
+lrtest(modelo_uno, modelo_dos)
+```
+
+Teremos que avaliar os resíduos das proposições adicionais também.
+
+```{r}
+# NOTA SOBRE O COMANDO xtmixed:
+# No R, a função lmer() do pacote lme4 cobre totalmente o que o xtmixed e o meglm faziam no Stata.
+# O modelo sem efeito aleatório (xtmixed peso semana, mle) é exatamente o "modelo_uno" (glm/lm).
+# O modelo com efeito aleatório (xtmixed peso semana || id:, mle) é exatamente o "modelo_dos" acima.
+
+# ==========================================
+# Diagnostico e obtenção de interceptos
+# ==========================================
+
+# predict e, resid
+# Extraindo os resíduos do nível 1 (intra-indivíduos)
+dados$residuos_e <- residuals(modelo_dos)
+```
+
+
+```{r}
+# predict e_cons, reffects level(id)
+# Extraindo os efeitos aleatórios (interceptos) do nível 2 (indivíduos)
+# A função ranef() devolve uma lista; pegamos o data.frame associado ao "id" e a coluna do intercepto
+efeitos_aleatorios <- ranef(modelo_dos)$id
+efeitos_aleatorios$e_cons <- efeitos_aleatorios$`(Intercept)`
+```
+
+
+```{r}
+# qnorm e, name(g1) - Q-Q plot para os resíduos do modelo
+g1 <- ggplot(dados, aes(sample = residuos_e)) +
+  stat_qq() +
+  stat_qq_line(color = "blue") +
+  theme_minimal() +
+  labs(title = "Q-Q Plot: Resíduos (e)")
+
+g1
+```
+
+
+```{r}
+# qnorm e_cons, name(g2) - Q-Q plot para os efeitos aleatórios (interceptos)
+g2 <- ggplot(efeitos_aleatorios, aes(sample = e_cons)) +
+  stat_qq() +
+  stat_qq_line(color = "red") +
+  theme_minimal() +
+  labs(title = "Q-Q Plot: Efeitos Aleatórios (e_cons)")
+
+g2
+```
+
+
+```{r}
+# graph combine g1 g2, cols(2) colfirst
+# Usamos o pacote patchwork (operador +) para colocar os gráficos lado a lado
+# g1 + g2
+```
+
+```{r}
+predict(modelo_dos)
+```
+
+(ver  de fazer um gráfico para visualizar essas predições tb)
+
+
+
+
+# Exemplo 3
+
+Estimar os dias de recuperação dos pacientes com base em diversas informações (hospital, tratamento, idade, severidade, sexo e IMC)
+
+
+```{r}
+library(haven)
+
+# Carregar o banco de dados
+dados <- read_dta("Trat_Severidade_hospitais.dta")
+
+head(dados)
+```
+
+```{r}
+dim(dados)
+```
+
+```{r}
+str(dados)
+```
+
+
+```{r}
+dados$treatment <- as.factor(dados$treatment)
+dados$severity <- as.factor(dados$severity)
+dados$sex <- as.factor(dados$sex)
+```
+
+
+Visualizando...
+
+
+
+```{r}
+hist(dados$recovery_days, breaks = 30)
+```
+
+Assimetria presente. Vamos supor dist Gamma.
+
+```{r}
+modelo <- glmer(recovery_days ~ treatment + age + severity + sex + bmi + (1|hospital),
+                family = Gamma(link = "log"),
+                data = dados)
+summary(modelo)
+```
+```{r}
+razao_medias <- exp(fixef(modelo))
+print(razao_medias)
+```
+
+```{r}
+# razao_medias <- exp(ranef(modelo))
+# print(razao_medias)
+```
+
+```{r}
+broom.mixed::tidy(modelo, exponentiate = TRUE, conf.int = TRUE)
+```
+
+
+Professora pede para continuar, com interações também (idade e severidade por exemplo, sexo e severidade tb)
+
+
+```{r}
+modelo <- glmer(recovery_days ~ treatment + age * severity + sex + bmi + (1|hospital),
+                family = Gamma(link = "log"),
+                data = dados)
+summary(modelo)
+```
+
+
+# Modelo Misto para respostas binárias
+
+
+```{r}
+dados <- read_dta("vacuna.dta")
+head(dados)
+```
+
+
+
+```{r}
+dados <- dados %>%
+  mutate(
+    mujer = as.factor(mujer),
+    educ_sup = as.factor(educ_sup),
+    municipio = as.factor(municipio)
+  )
+```
+
+
+```{r}
+# ==========================================
+# Explorar la base
+# ==========================================
+
+# tab mujer vacunado
+table(Mujer = dados$mujer, Vacunado = dados$vacunado)
+```
+
+
+```{r}
+# tab mujer educ_sup
+table(Mujer = dados$mujer, Educ_Sup = dados$educ_sup)
+```
+
+
+```{r}
+# tab vacunado educ_sup
+table(Vacunado = dados$vacunado, Educ_Sup = dados$educ_sup)
+```
+
+
+```{r}
+# twoway... (Exemplo: Curva de probabilidade logística por idade)
+# Como a variável 'vacunado' precisa ser numérica (0 e 1) para esse gráfico específico:
+ggplot(dados, aes(x = edad, y = as.numeric(as.character(vacunado)))) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE, color = "blue") +
+  theme_minimal() +
+  labs(x = "Edad", y = "Probabilidad de ser vacunado", title = "Vacunación vs Edad")
+```
+
+
+```{r}
+# ==========================================
+# Modelar
+# ==========================================
+
+# melogit vacunado edad mujer educ_sup || municipio:, or
+# estimate store M0
+M0 <- glmer(vacunado ~ edad + mujer + educ_sup + (1 | municipio), 
+            family = binomial(link = "logit"), data = dados)
+summary(M0)
+
+# Para obter o "or" (Odds Ratios), aplicamos exp() aos coeficientes fixos:
+cat("\nOdds Ratios - Modelo M0:\n")
+exp(fixef(M0))
+```
+
+
+```{r}
+# melogit vacunado edad mujer educ_sup || municipio: educ_sup, or
+# estimate store M1
+# (1 + educ_sup | municipio) adiciona a inclinação aleatória para educ_sup por município
+M1 <- glmer(vacunado ~ edad + mujer + educ_sup + (1 + educ_sup | municipio), 
+            family = binomial(link = "logit"), data = dados)
+summary(M1)
+
+cat("\nOdds Ratios - Modelo M1:\n")
+exp(fixef(M1))
+```
+
+
+```{r}
+# lrtest M0 M1 (Teste da Razão de Verossimilhança)
+anova(M0, M1)
+```
+```{r}
+M2 <- glmer(vacunado ~ edad + mujer * educ_sup + (1 | municipio), 
+            family = binomial(link = "logit"), data = dados)
+summary(M2)
+
+cat("\nOdds Ratios - Modelo M2:\n")
+exp(fixef(M2))
+```
+
+
+```{r}
+# ==========================================
+# Interação c.edad#educ_sup
+# ==========================================
+
+# melogit vacunado mujer c.edad#educ_sup || municipio: , or
+# No Stata, c.var1#var2 inclui apenas o termo de interação (sem os efeitos principais).
+# No R, isso é representado pelo operador dois pontos (:)
+M2 <- glmer(vacunado ~ mujer + edad:educ_sup + (1 | municipio), 
+            family = binomial(link = "logit"), data = dados)
+summary(M2)
+
+cat("\nOdds Ratios - Modelo M2:\n")
+exp(fixef(M2))
+```
+
+
+
+
+# Exemplo 2: Micose no pé
+
+
+```{r}
+dados <- read_dta("toenail.dta")
+head(dados)
+```
+
+
+
+```{r}
+dados <- dados %>%
+  mutate(
+    # label define tratlbl 0 "Itraconazole" 1 "Terbinafine"
+    tratamento = factor(tratamento, levels = c(0, 1), labels = c("Itraconazole", "Terbinafine")),
+    
+    # Asegurar que el identificador del paciente sea un factor (muy importante para lme4)
+    paciente = as.factor(paciente)
+  )
+```
+
+
+```{r}
+# ==========================================
+# Exploración de la estructura de datos
+# ==========================================
+
+# xtdes, i(paciente) t(visita)
+# R no tiene un comando exacto 'xtdes', pero podemos ver el número de visitas por paciente:
+dados %>% 
+  group_by(paciente) %>% 
+  summarise(n_visitas = n()) %>% 
+  count(n_visitas, name = "Frecuencia_de_pacientes")
+```
+
+
+```{r}
+# ==========================================
+# Análisis Exploratorio (Tablas)
+# ==========================================
+
+# tab outcome
+table(Outcome = dados$outcome)
+```
+
+Os dados não são balanceados...
+
+```{r}
+# tab outcome tratamento
+table(Outcome = dados$outcome, Tratamiento = dados$tratamento)
+```
+
+
+```{r}
+# tab outcome visita
+table(Outcome = dados$outcome, Visita = dados$visita)
+```
+
+
+```{r}
+# ==========================================
+# Análisis Exploratorio (Gráficos)
+# ==========================================
+
+# graph bar, over(outcome) over(tratamento)
+ggplot(dados, aes(x = tratamento, fill = as.factor(outcome))) +
+  geom_bar(position = "dodge") +
+  theme_minimal() +
+  labs(fill = "Infección (Outcome)", x = "Tratamiento", y = "Conteo")
+```
+
+
+```{r}
+# graph bar, over(outcome) over(visita)
+ggplot(dados, aes(x = as.factor(visita), fill = as.factor(outcome))) +
+  geom_bar(position = "dodge") +
+  theme_minimal() +
+  labs(fill = "Infección", x = "Visita", y = "Conteo")
+```
+
+
+```{r}
+# o alternativamente, la curva over time
+# egen prop = mean(outcome), by(tratamento visita)
+# egen mn_mes = mean(mes), by(tratamento visita)
+# twoway line prop mn_mes, by(tratamento) sort
+dados_resumen <- dados %>%
+  group_by(tratamento, visita) %>%
+  summarise(
+    prop = mean(outcome, na.rm = TRUE),
+    mn_mes = mean(mes, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+
+```{r}
+ggplot(dados_resumen, aes(x = mn_mes, y = prop, group = tratamento, color = tratamento)) +
+  geom_line(size = 1) +
+  geom_point() +
+  facet_wrap(~ tratamento) + # by(tratamento)
+  theme_minimal() +
+  labs(x = "Time in months", y = "Proportion of onycholysis", color = "Tratamiento")
+```
+
+
+```{r}
+# ==========================================
+# Modelos Multinivel (Efectos Mixtos Binarios)
+# ==========================================
+
+# melogit outcome i.tratamento c.mes || paciente:
+M_basal <- glmer(outcome ~ tratamento + mes + (1 | paciente), 
+                 family = binomial(link = "logit"), data = dados)
+summary(M_basal)
+
+# Para obtener Odds Ratios (la opción ", or" de Stata)
+cat("\nOdds Ratios (M_basal):\n")
+exp(fixef(M_basal))
+```
+
+
+```{r}
+# melogit outcome i.tratamento c.mes || paciente: mes
+# (1 + mes | paciente) permite que cada paciente tenga su propia velocidad de mejora (pendiente aleatoria)
+M_pendiente <- glmer(outcome ~ tratamento + mes + (1 + mes | paciente), 
+                     family = binomial(link = "logit"), data = dados)
+summary(M_pendiente)
+cat("\nOdds Ratios (M_basal):\n")
+exp(fixef(M_pendiente))
+```
+
+
+```{r}
+# melogit outcome i.tratamento c.mes i.tratamento#c.mes || paciente:
+# En R, la interacción se hace con ":" (solo la interacción) o "*" (efectos principales + interacción)
+M_interaccion <- glmer(outcome ~ tratamento + mes + tratamento:mes + (1 | paciente), 
+                       family = binomial(link = "logit"), data = dados)
+summary(M_interaccion)
+cat("\nOdds Ratios (M_basal):\n")
+exp(fixef(M_interaccion))
+```
+
+
+```{r}
+# ==========================================
+# Empirical Bayes (Efectos Aleatorios por Paciente)
+# ==========================================
+
+# predict ebmodal, reffects
+# Extraemos los interceptos aleatorios de cada paciente del modelo M_basal
+efectos_aleatorios <- ranef(M_basal)$paciente
+efectos_aleatorios$paciente <- rownames(efectos_aleatorios) # Recuperar el ID del paciente
+efectos_aleatorios <- efectos_aleatorios %>% rename(ebmodal = `(Intercept)`)
+
+# egen num0 = total(outcome==0), by(paciente)
+# egen num1 = total(outcome==1), by(paciente)
+resumen_pacientes <- dados %>%
+  group_by(paciente) %>%
+  summarise(
+    num0 = sum(outcome == 0, na.rm = TRUE),
+    num1 = sum(outcome == 1, na.rm = TRUE)
+  )
+
+# Unimos la tabla de conteos con los Empirical Bayes
+tabla_final <- left_join(resumen_pacientes, efectos_aleatorios, by = "paciente")
+
+# list paciente num0 num1 ebmodal if visita==1 , noobs
+# Como los datos ya están resumidos por paciente en 'tabla_final', simplemente imprimimos las primeras filas:
+head(tabla_final, 10)
+```
+

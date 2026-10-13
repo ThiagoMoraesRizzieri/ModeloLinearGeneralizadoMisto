@@ -1,0 +1,281 @@
+---
+title: "Exemplos"
+format: pdf
+editor: visual
+---
+
+Exemplos da aula:
+
+
+```{r}
+dosis <- c(1, 2, 4, 8, 16, 32)
+muertos <- c(1, 5, 17, 23, 33, 36)
+total <- rep(40, 6)
+prop <- muertos / total
+log2d <- c(0, 1, 2, 3, 4, 5) # Transformação log2(dosis)
+datos <- data.frame(dosis, muertos, total, prop, log2d)
+```
+
+
+```{r}
+plot(datos$dosis, datos$prop, xlab = "dosis", ylab = "Proporcion de Muertos", pch = 16)
+text(datos$dosis, datos$prop, labels = datos$muertos, pos = 4)
+```
+
+
+```{r}
+# Dispersão usando log2d
+plot(datos$log2d, datos$prop, xlab = "log2d", ylab = "prop", pch = 16)
+```
+
+
+```{r}
+fit_logit <- glm(cbind(muertos, total - muertos) ~ log2d, 
+                 data = datos, family = binomial(link = "logit"))
+summary(fit_logit)
+```
+
+
+```{r}
+AIC(fit_logit) 
+BIC(fit_logit)
+```
+
+Mudando para o probit:
+
+```{r}
+fit_probit <- glm(cbind(muertos, total - muertos) ~ log2d, 
+                  data = datos, family = binomial(link = "probit"))
+summary(fit_probit)
+```
+
+
+```{r}
+AIC(fit_probit) 
+BIC(fit_probit)
+```
+
+Mudança muito pequena para esse outro tipo de função de ligação que requer uma interpretação mais elaborada...
+
+
+Mudando para o complemento log-log:
+
+```{r}
+fit_cloglog <- glm(cbind(muertos, total - muertos) ~ log2d, 
+                   data = datos, family = binomial(link = "cloglog"))
+summary(fit_cloglog)
+```
+
+```{r}
+AIC(fit_cloglog)
+BIC(fit_cloglog)
+```
+
+Nesse caso, piorou mais.
+
+
+
+Exercício 6:
+
+(Podemos testar incluir uma variável numérica)
+
+
+```{r}
+library(haven)
+
+# Carregar o banco de dados
+df <- read_dta("SobrevidaTumor.dta")
+head(df)
+```
+
+
+Basta copiar os dados a seguir:
+
+Estómago Bronquio Colon Ovario Mama
+124 81 248 1234 1235
+42 461 377 89 24
+25 20 189 201 1581
+45 450 1843 356 1166
+412 246 180 2970 40
+51 166 537 456 727
+1112 63 519 3808
+46 64 455 791
+103 155 406 1804
+876 859 365 3460
+146 151 942 719
+340 166 776
+396 37 372
+223 163
+138 101
+72 20
+245 283
+
+```{r}
+dados6 <- read.delim("clipboard", header = T, sep = " ")
+head(dados6)
+```
+
+
+```{r}
+library(tidyr)
+
+dados6_long <- pivot_longer(
+  data = dados6,
+  cols = everything(), # The columns you want to pivot
+  names_to = "Tipos_cancer", # Name of the new column for old header names
+  values_to = "Meses" # Name of the new column for the cell values
+)
+
+dados6_long$Tipos_cancer <-  as.factor(dados6_long$Tipos_cancer)
+
+head(dados6_long)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(dados6_long, aes(y = Meses ,fill =Tipos_cancer))+
+  geom_boxplot()
+```
+
+
+```{r}
+library(dplyr)
+
+dados6_long %>%
+  group_by(Tipos_cancer) %>%
+  summarise(
+    mean = mean(Meses, na.rm = TRUE),
+    sd = sd(Meses, na.rm = TRUE),
+    min = min(Meses, na.rm = TRUE),
+    max = max(Meses, na.rm = TRUE),
+    cv = sd(Meses, na.rm = TRUE) / mean(Meses, na.rm = TRUE)
+  )
+```
+
+CV são todos bem próximos!! Isso é um alerta para ser um problema para a distribuição normal. O CV não é influenciado pela média.
+
+
+```{r}
+ggplot(dados6_long, aes(x = Meses, fill = Tipos_cancer))+
+  geom_density()+
+  facet_wrap(~ Tipos_cancer)
+```
+
+
+```{r}
+# Modelo classico normal
+modelo_reg <- lm(Meses ~ Tipos_cancer, data = dados6_long)
+summary(modelo_reg)
+
+# estat ic (AIC e BIC)
+AIC(modelo_reg)
+BIC(modelo_reg)
+```
+
+
+```{r}
+# glm Tiempo i.Tumor, family(gamma) link(identity)
+modelo_glm1 <- glm(Meses ~ Tipos_cancer, family = Gamma(link = "identity"), data = dados6_long)
+summary(modelo_glm1)
+
+AIC(modelo_glm1)
+BIC(modelo_glm1)
+```
+
+```{r}
+# Deviance
+dev_residual <- deviance(modelo_glm1)
+
+# Parâmetro de dispersão (Phi)
+# No R, ele é estimado por padrão usando os resíduos de Pearson e 
+phi <- summary(modelo_glm1)$dispersion
+
+# Scaled Deviance (Deviance Escalada)
+scaled_dev <- dev_residual / phi
+
+# Imprimindo os resultados no console
+cat("Deviance Residual:   ", dev_residual, "\n")
+cat("Parâmetro Dispersão: ", phi, "\n")
+cat("Scaled Deviance:     ", scaled_dev, "\n")
+```
+
+
+```{r}
+# (Deviance do modelo apenas com o intercepto)
+dev_nula <- modelo_glm1$null.deviance
+cat("Null Deviance:       ", dev_nula, "\n")
+```
+
+
+
+
+```{r}
+# glm Tiempo ib(5).Tumor, family(gamma) link(pow -1)
+# Definimos a categoria do Ovário como a referência (base)
+dados6_long$Tipos_cancer <- relevel(dados6_long$Tipos_cancer, ref = "Ovario")
+```
+
+
+```{r}
+# Pow -1 é equivalente ao link "inverse" no R
+modelo_glm2 <- glm(Meses ~ Tipos_cancer, family = Gamma(link = "inverse"), data = dados6_long)
+summary(modelo_glm2)
+AIC(modelo_glm2)
+BIC(modelo_glm2)
+```
+
+
+```{r}
+modelo_glm2 <- glm(Meses ~ Tipos_cancer, family = Gamma(link = "log"), data = dados6_long)
+summary(modelo_glm2)
+AIC(modelo_glm2)
+BIC(modelo_glm2)
+```
+
+
+```{r}
+# ==========================================
+# Diagnostico del modelo Gamma (usando modelo_glm2)
+# ==========================================
+
+# predict media (valores preditos na escala de resposta)
+df$media <- fitted(modelo_glm2) 
+# ou: df$media <- predict(modelo_glm2, type = "response")
+
+# predict res, dev (resíduos deviance)
+df$res <- residuals(modelo_glm2, type = "deviance")
+
+# twoway (scatter media res)
+# No R, usualmente plotamos Resíduos (y) vs Preditos (x)
+ggplot(df, aes(x = media, y = res)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(x = "Média Predita", y = "Resíduos Deviance")
+
+# pnorm res (Gráfico de probabilidade normal Q-Q plot)
+ggplot(df, aes(sample = res)) +
+  stat_qq() +
+  stat_qq_line(color = "red") +
+  theme_minimal() +
+  labs(title = "Gráfico de Probabilidade Normal (Q-Q Plot)")
+
+# ==========================================
+# Grafico ilustrativo
+# ==========================================
+
+# margins r.Tumor, asbalanced
+margens <- emmeans(modelo_glm2, ~ Tumor)
+summary(margens)
+
+# marginsplot, xdimension(Tumor)
+plot(margens) + 
+  theme_minimal() +
+  labs(x = "Tumor", y = "Marginal Linear Predictions")
+```
+
+
+
+
+

@@ -1,0 +1,106 @@
+---
+examnum: "Trabalho"
+student: "Thiago Moraes Rizzieri"
+class: "Modelos Lineares Generalizados Mistos"
+teacher: "Profa. Dra. Maria Pillar"
+lang: pt-br
+format:
+  pdf:
+    documentclass: survactivity
+    header-includes: |
+      \class{Modelos Lineares}
+      \examnum{Resolução da Lista 05}
+      \teacher{Luzia Aparecida Trinca}
+      \student{Thiago Moraes Rizzieri}
+    filters:
+      - ambientes-latex.lua
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+# Exercício 8:
+
+Foi realizado um estudo sobre os efeitos do AZT (droga base) na diminuição do desenvolvimento de sintomas do HIV. Um total de 338 adultos infectados com o vírus do HIV, cujos sistemas imunológicos estavam começando a falhar, foram designados aleatoriamente para receber AZT imediatamente ou para esperar até que suas células T evidenciassem uma fraqueza imunológica severa. Os dados apresentados na tabela a seguir mostram o número de sujeitos que desenvolveram ou não sintomas de HIV durante um período de estudo de 3 anos, levando em consideração a raça e se receberam AZT imediatamente ou não.
+
+
+a- Apresente um modelo logit apropriado para esta situação, descrevendo o ajuste realizado e justificando sua escolha.
+b- Interprete os resultados obtidos, realizando estimativas de razões de chances (odds ratios).
+c- Encontre um intervalo de confiança de 95% para a razão de chances de desenvolver sintomas entre aqueles que recebem o tratamento com AZT imediatamente e os que recebem mais tarde.
+
+**Resolução:**
+
+a) Primeiramente, façamos a leitura dos dados com base na tabela apresentada no enunciado da atividade:
+
+```{r}
+dados_ex8 <- data.frame(
+  Raca = c("Branca", "Branca", "Negra", "Negra"),
+  Tratamento = c("Imediatamente", "Mais_tarde", "Imediatamente", "Mais_tarde"),
+  Com_Sintomas = c(14, 32, 11, 12),
+  Sem_Sintomas = c(93, 81, 52, 43)
+)
+
+# Convertendo variáveis de texto em fatores
+dados_ex8$Raca <- as.factor(dados_ex8$Raca)
+dados_ex8$Tratamento <- as.factor(dados_ex8$Tratamento)
+```
+
+Como solicitado pelo enunciado, vamos testar um modelo logístico para a proporção da presença de sintomas com base na raça e no tratamento.
+
+
+```{r}
+# Como os dados estão agrupados, precisamos modelar as respostas de sucesso e fracasso usando a função cbind()
+
+modelo_ex8 <- glm(cbind(Com_Sintomas, Sem_Sintomas) ~ Raca + Tratamento,
+                  family = binomial(link = "logit"), data = dados_ex8)
+
+summary(modelo_ex8)
+```
+
+
+Observamos que a variável Raça não é significativa para o surgimento de sintomas da HIV, enquanto o momento de tratamento ser altamente significativo $p=0.00991$.
+
+Podemos pegar o Residual deviance e dividir pelo grau de liberdade para ver se está próximo de 1.
+
+```{r}
+abs(1-1.3835/1)
+```
+
+Sua distância até 1 é de 0.3835, vejamos como o modelo se dispõe se removermos esta variável.
+
+```{r}
+modelo_ex8 <- glm(cbind(Com_Sintomas, Sem_Sintomas) ~ Tratamento,
+                  family = binomial(link = "logit"), data = dados_ex8)
+
+summary(modelo_ex8)
+```
+
+```{r}
+abs(1-1.4206/2)
+```
+
+Temos uma pequena melhoria do modelo, logo, apenas a informação do período de tratamento tem sido relevante para saber sobre os sintomas.
+
+```{r}
+modelo_ex8$fitted.values
+```
+
+
+
+```{r}
+exp(coef(modelo_ex8))
+```
+
+
+
+```{r}
+exp(confint(modelo_ex8))
+```
+
+
+A razão de chances (Odds Ratio) para a variável TratamentoMais_tarde é de 2.058. 
+
+Isso significa que a chance de desenvolver sintomas do HIV no grupo que adia o trat
+
+amento com AZT é aproximadamente 2,06 vezes a chance do grupo que recebe a medicação imediatamente. O intervalo de 95% de confiança gerado varia de 1,20 a 3,59, nos dando a certeza estatística de que atrasar o tratamento efetivamente aumenta o risco do paciente.
+

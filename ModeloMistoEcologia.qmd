@@ -1,0 +1,312 @@
+---
+title: "ModeloMistoEcologia"
+format: html
+editor: visual
+---
+
+
+```{r}
+library(lme4)
+```
+
+
+
+```{r}
+dados <- read.table("RIKZ.txt", header = TRUE, row.names = 1, as.is = TRUE)
+head(dados)
+```
+
+```{r}
+table(dados$Beach, dados$Exposure)
+```
+
+
+```{r}
+dados$Exposure[dados$Exposure == 8] <- 10
+
+```
+
+
+```{r}
+# criando uma nova coluna com a variável exposure fator
+dados$fExposure[dados$Exposure == 10] <- "low"
+dados$fExposure[dados$Exposure == 11] <- "high"
+dados$fExposure <- as.factor(dados$fExposure)
+```
+
+Antes, como ficaria se fosse um modelo linear clássico:
+
+```{r}
+modelo <- lm(Richness ~ NAP, data = dados)
+summary(modelo)
+```
+
+
+
+
+```{r}
+library(ggplot2)
+
+dados$Praia = as.factor(dados$Beach)
+
+ggplot(data = dados, aes(x = NAP, y = Richness, color = Praia)) +
+  geom_point(size = 3, shape = 19) +
+  scale_color_brewer(palette = "Set1") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 13), 
+        axis.title = element_text(size = 15),
+        axis.text.x = element_text(size = 11),
+        axis.text.y = element_text(size = 11),
+        legend.key.size = unit(0.6, "cm"),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 13)) +
+  xlab("NAP") +
+  ylab("Riqueza") +
+  geom_smooth(method = "lm", se = F)
+```
+
+
+
+Nossa tabela de dados não possui nenhum valor faltante, mas caso possuísse, não tem muito problema em análises de modelos mistos. Agora, vamos construir nosso modelo.
+
+
+Relembrando, estamos interessados agora em ver se existe um efeito de NAP na riqueza de espécies. Nossos dados contam com nove diferentes praias e cinco diferentes amostras para cada uma delas. Dessa forma, temos como efeito fixo a variável NAP, e como efeito aleatório a variável praia (Beach), que significa que cada praia terá um intercepto diferente. Assim, nosso modelo é:
+
+```{r}
+modelo.riqueza <- lmer(Richness ~ NAP +  (1 | Beach), data = dados)
+
+```
+
+Em seguida, vamos dar uma olhada no output do modelo:
+
+```{r}
+summary(modelo.riqueza)
+
+```
+
+
+Vamos dar uma olhada na parte dos efeitos aleatórios. O desvio padrão é uma medida do quanto a variablidade da nossa variável dependente - riqueza - é devida aos dois efeitos aleatórios que estamos analisando (os interceptos das praias e os resíduos). Podemos ver o desvio padrão associado às diferenças de intercepto entre praias (o bi
+ do modelo). A última linha nos dá o resíduo, que indica o quanto da variabilidade não é prevista pela praia nem pelo NAP, que nada mais é do que o ε
+ acima explicado.
+
+Os efeitos fixos indicam os coeficientes estimado pra cada um dos fatores que estamos considerando como fixos. No caso, temos o intercepto que é a riqueza quando o NAP é zero (6.5818929), e o coeficiente angular de NAP (-2.5683996).
+
+
+
+```{r}
+#criando objeto com os coeficientes do modelo (efeitos fixos)
+cof <- fixef(modelo.riqueza)
+```
+
+Para fazer o gráfico de nosso modelo ajustado, com a reta (predição) dos efeitos fixos e as “retinhas” preditas para cada praia, vamos primeiro calcular os valores preditos para cada praia2.
+
+
+```{r}
+# Primeiro criamos um novo conjunto de dados com as características no antigo
+novo <- expand.grid(Beach = unique(dados$Beach),
+                    NAP = seq(-1.3,2.2,0.5))
+
+#agora calculamos os valores preditos para esse novo conjunto de dados
+preditos <- predict(modelo.riqueza, newdata = novo)
+
+#guardando tudo em um novo data.frame
+dados.preditos <- data.frame(pred = preditos, novo)
+
+head(dados.preditos)
+```
+
+
+Agora podemos plotar os dados com o ajuste do nosso modelo3:
+
+
+```{r}
+funi <- function(x){cof[1] + cof[2]*x} # para plotar a predição dos efeitos fixos
+dados$Praia = as.factor(dados$Beach)# transformando praia em fator
+
+ggplot(data = dados, aes(x = NAP, y = Richness, color = Praia)) + # dados e eixos
+  geom_point(size = 3, shape = 19) +  # plotando os pontos das praias 
+  geom_line(data = dados.preditos, aes(y = pred, x = NAP, 
+                            col = as.factor(Beach))) + # retas de cada praia
+  stat_function(fun = funi, col = "black", size = 2) +  # reta do modelo fixo 
+  scale_color_brewer(palette = "Set1") + # a partir daqui estética do gráfico
+  theme_bw() +
+  theme(axis.text = element_text(size = 13), 
+        axis.title = element_text(size = 15),
+        axis.text.x = element_text(size = 11),
+        axis.text.y = element_text(size = 11),
+        legend.key.size = unit(0.6, "cm"),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 13)) +
+  xlab("NAP") +
+  ylab("Riqueza")
+```
+
+
+Gráfico do ajuste do modelo com a reta em preto sendo o predito pelos modelos fixos e as retas coloridas as predições para cada praia.
+Gráfico do ajuste do modelo com a reta em preto sendo o predito pelos modelos fixos e as retas coloridas as predições para cada praia.
+
+Podemos ver nessa figura a predição do nosso modelo em relação aos parâmetros fixos (reta em preto), e as predições para cada praia separadamente. Como o efeito aleatório do nosso modelo estava apenas variando os valores de intercepto das praias, as retas para cada praia são paralelas.
+
+Existem, entretanto, diversas maneiras de criar seu modelo, escolher os parâmetros importantes, e decidir quais são fixos e quais são aleatórios. Nesse exemplo, poderíamos colocar a variável Exposure também como um efeito fixo. Outra complicação que poderíamos inserir no nosso modelo é inserir mais um efeito aleatório de interação entre a praia (efeito aleatório) e NAP (efeito fixo), fazendo com que cada praia possa ter inclinações de reta diferentes.
+
+Por isso, é importante testar diferentes modelos antes de decidir qual é o melhor. Na próxima parte abordaremos como selecionar o melhor modelo dadas todas as possibilidades.
+
+Escolha dos efeitos aleatórios
+Existem modelos e, portanto, perguntas e delineamentos amostrais, que requere apenas um efeito aleatório para indicar o agrupamento dos dados. Entretanto, como colocado no final da seção anterior, há também modelos que podem incluir mais de um efeito aleatório. Esse é o caso da interação entre praia e NAP mencionada acima. Se olharmos para o primeiro gráfio, veremos que cada praia parece ter seu próprio intercepto e inclinação, o que torna plausível pensarmos que o modelo com a interação se ajuste melhor aos nosso dados.
+
+Para modelos que podem ter mais de um efeito aleatório, Zuur et al. (2009) sugere um protocolo para a escolha da melhor estrutura de efeitos aleatórios. Vamos aos passos:
+
+A primeira coisa a ser feita é ajustar um modelo com todos os efeitos fixos que estão sendo testados (modelo “completo”). No nosso exemplo tínhamos apenas NAP, mas vamos incluir Exposure (como fator) para exemplificar melhor, e vamos incluir a interação entre NAP e Exposure. Nosso modelo “completo” é:
+Richness ~ fExposure * NAP + efeito(s) aleatório(s)
+Depois que escolhemos o modelo “completo”, adicionamos com os efeitos aleatórios plausíveis. No nosso exemplo, escolhemos duas possibilidades de efeito aleatório, variações no intercepto entre praias ((1|Beach)) e a interação entre praia e NAP, resultando também na variação de inclinação entre praias ((NAP|Beach)). Podemos também ajustar um modelo sem efeito aleatório (usando a função lm) e ver se a inclusão do efeito aleatório resulta num melhor ajuste do modelo:
+
+```{r}
+# os modelos possíveis do nosso exemplo
+m0 <- lm(Richness   ~ fExposure * NAP, data = dados) #sem efeito aleat.
+m1 <- lmer(Richness ~ fExposure * NAP + (1|Beach), data = dados)
+m2 <- lmer(Richness ~ fExposure * NAP + (NAP|Beach), data = dados)
+```
+
+
+Um ponto importante é que estes modelos serão ajustados utilizando uma forma diferente de estimação, ao invés da máxima verossimilhança (ML), vamos usar a máxima verossimilhança restrita (REML). Isso acontece porque a ML é enviesado para as estimativas de variância do modelo e a REML corrige este enviesamento. Na prática, nós não precisamos fazer nada, pois a função lmer já usa, por padrão, a REML (argumento REML = T).
+
+Colocamos estes modelos ajustados para “concorrer” usando o Critério de Informação de Akaike (AIC), como um critério para a seleção de modelos (menor AIC, melhor modelo) (ver Burnham & Anderson 2002). Como temos poucos dados vamos usar o AICc - que é uma correção do AIC para pequeno tamanho amostral.
+
+```{r}
+# usamos a função AICctab do pacote bbmle
+library(bbmle)
+
+AICctab(m0, m1,m2, base = T, weights = T)
+```
+
+
+
+Agora sabemos que a melhor estrutura de efeito aleatório é apenas a varição no intercepto entre as praias. Assim, podemos prosseguir com a verificação dos efeitos fixos através de teste de hipóteses e/ou seleção de modelos.
+
+Inferência e diagnóstico do modelo
+Nessa parte, depois de já escolhermos a estrutura aleatória do nosso modelo, podemos averiguar qual a real influência dos efeitos fixos na riqueza de espécies. Vou apresentar duas abordagens de inferência, o Teste de Hipóteses através da comparação de modelos pela tabela de ANOVA e a seleção de modelos por AIC. E, depois de selecionado o modelo que melhor se ajusta aos dados, vamos fazer o diagnóstico dos resíduos deste modelo para ver se ele atende às premissas de um modelo linear misto.
+
+Teste de hipótese
+Você pode perceber que o output da função lmer não dá as estatísticas t e o valor de P, dos parâmetros fixos do modelo como faz um lm (veja o summary do nosso primeiro modelo e compare com o m0). Isso porque a chamada “estatística Wald” (ou estatísticas marginais) não é recomendada para modelos mistos (sobre isso melhor olhar nas referências recomendadas). O que se faz para saber se uma variável é significativa ou não é construir modelos aninhados (ou seja, retirando um parâmetro do modelo com mais parâmetros) e comparando por uma tablea de Análise de Variância.
+
+Nesse caso, precisamos ajustar nosso modelo por máxima verossimilhança (ML), pois é o indicado para compararmos modelos com diferentes efeitos fixos mas com mesmo efeito aleatório. Então colocamos o argumento REML = F no nosso modelo:
+
+
+```{r}
+# modelo com interação entre Exposure e NAP
+m1 <- lmer(Richness ~ fExposure * NAP + (1|Beach), data = dados, REML = F)
+
+# modelo sem interação entre exposure e NAP
+m3 <- lmer(Richness ~ fExposure + NAP + (1|Beach), data = dados, REML = F)
+```
+
+
+E aplicamos a função anova nos nossos modelos aninhados:
+
+```{r}
+anova(m1,m3)
+
+```
+
+
+Como o resultado da comparação entre os modelos foi significativo, nós paramos por aqui, ou seja, o modelo com interação é significativamente diferente do modelo sem interação. O que podemos fazer a seguir é assegurar que o modelo com interação é também diferente do modelo nulo (sem efeitos fixos):
+
+
+```{r}
+# modelo nulo
+m6 <- lmer(Richness ~ 1 + (1|Beach), data = dados, REML = F)
+
+anova(m1,m6)
+```
+
+
+
+Sim! Então podemos concluir que tanto Exposure quanto NAP influenciam na riqueza de espécies. Caso não tivesse havido diferença entre o modelo com interação e sem, nós deveríamos prosseguir com a seleção de modelos fazendo a comparação entre o modelo com as duas variáveis e modelos com cada variável separadamente.
+
+Vamos observar o resumo do nosso modelo selecionado:
+
+```{r}
+summary(m1)
+
+```
+
+
+Seleção de modelos por AICc
+Uma outra forma de analisar os dados seria fazer de uma vez só uma seleção de modelos usando a abordagem de seleção de modelos por AIC (AICc no nosso caso). Essa forma de analisar é parecida com o que foi utilizado para escolha do efeito aleatório, porém neste caso estamos comparando modelos com diferentes efeitos fixos mas com meso efeito aleatório. Então vamos usar também REML = F em todos os modelos:
+
+```{r}
+m1 <- lmer(Richness ~ fExposure * NAP + (1|Beach), data = dados, REML = F)
+m3 <- lmer(Richness ~ fExposure + NAP + (1|Beach), data = dados, REML = F)
+m4 <- lmer(Richness ~ fExposure + (1|Beach), data = dados, REML = F)
+m5 <- lmer(Richness ~ NAP + (1|Beach), data = dados, REML = F)
+m6 <- lmer(Richness ~ 1 + (1|Beach), data = dados, REML = F)
+AICctab(m1,m3,m4,m5,m6, base = T, weights = T)
+```
+
+
+Usando essa abordagem, vemos que o modelo com interação entre NAP e Exposure é o melhor (usamos δAICc<2
+ como modelos igualmente plausíveis).
+
+Independente da abordagem que usamos (poderíamos também ter ajustado um modelo bayesiano - mas daí é tópico para outro roteiro), precisamos, depois de “escolhido” o modelo que melhor se ajusta aos nossos dados, avaliar este ajuste e as premissas deste modelo.
+
+Diagnósticos dos modelos
+O primeiro diagnóstico do modelo é verificar se os resíduos são normalmente distribuídos, para isso geralmente usamos um qqplot (gráfico de quantil-quantil da distribuição normal) e possivelmente um teste de normalidade (por exemplo o Shapiro-Wilks). Além disso podemos também checar visualmente a homogeneidade de variância dos resíduos (homocedasticidade), ou seja, se a variablidade dos resíduos se mantém constante em relação aos valores ajustados.
+
+Para isso usamos a função plotresid do pacote RVAidememoire:
+
+```{r}
+library(RVAideMemoire)
+
+plotresid(m1, shapiro = T)
+```
+
+Gráficos de resíduos do melhor modelo ajustado.
+
+OPS! Olhando o gráfico da esquerda, vemos que os dados não são tão homocedásticos como gostaríamos, vemos algo parcido com um funil se abrindo da esquerda para a direita, o que indica que estamos violando esta premissa. Olhando o gráfico da direita (o qqplot), temos que os valores extremos dos dados não se comportam muito bem como uma distribuição normal (as linhas em vermelho no gráfico indicam a área em que os pontos deveriam estar para que pudéssemos considerar os resíduos como normalmente distribuídos). Isso fica evidente quando fazemos o teste de Shapiro e encontramos que os dados são significativamente diferentes de uma distribuição normal (nesse teste se dá significativo é que não é normal).
+
+E agora??! Bem, não estamos totalmente perdidos, existe um caminho! O problema foi que nós assumimos que a riqueza de espécies poderiam ser modelados como pertencentes a uma distribuição normal. Entretanto, dados de contagem (nesse caso, número de espécies) são geralmente modelados usando a distribuição de Poisson, que também leva em consideração que a média é igual à variância.
+
+Então, para fazermos a modelagem correta dos nossos dados teremos que usar um modelo com distribuição de Poisson, que está implementado no pacote lme4 com a função glmer.
+
+Mas isso é tema para outro roteiro…
+
+Se você se interessou pelos modelos mistos e acha que eles se encaixamo no seu problema, não deixe de conferir as referências que a gente listou abaixo para se aprofundar nesse universo!!
+
+Glossário
+Efeitos fixos e aleatórios
+
+Existe muita discussão na literatura sobre como se diferencia efeitos fixos de aleatórios (veja sugestões de leitura no final do roteiro). De maneira geral, efeitos fixos são constantes em toda sua amostra, não variam de amostra pra amostra. Além disso, os diferentes níves existentes no efeitos fixos não variam se você incluir mais amostras (Bates et al 2014). Um exemplo claro é sexo: normalmente sua amostra conterá machos e fêmeas, e aumentar o seu n amostral a quantidade de níveis em seus fatores permanecerá constante.
+
+Máxima verossimilhança
+
+Máxima verossimilhança (ML) é uma abordagem estatística que estima os parâmetros de um modelo a partir de um dado conjunto de dados.
+
+Nos modelos mistos normais (que assume distribuição normal dos resíduos), utiliza-se a máxima verossimilhança restrita (REML) para estimar os parâmetros, pois a ML enviesa as estimativas de variância do modelo.
+
+Modelo linear
+
+Modelos lineares descrevem a resposta de uma variável dependente, a que você está interessado em explorar, em função de uma variável preditora, explanatória ou independente.
+dependente∼preditora
+
+Em ecologia, um dos usos mais comuns de modelos lineares se dá quando realizamos regressões ou correlações, por exemplo. Para fazer um modelo linear no R normalmente usamos a função lm:
+
+lm (dependente ~ preditora, data = seus dados)
+Modelo aninhado
+
+É o tipo de modelo que utilizamos modelos mistos, no qual um modelo mais geral está aninhado dentro de outros modelos de modo que as variáveis independentes do modelo mais especíico formam um subconjunto das variáveis do modelo mais geral. No exemplo das praias isso é facilmente visualizado dado que dataset é composto de nove praias, e para cada uma das nove praias existem cinco amostras. O modelo linear não considera esse aninhamento dos dados e o fato de que, muito provavelmente, a riqueza em cada uma das cinco amostras está muito mais relacionada entre si do que entre praias.
+
+Referências e recomendações
+Bates, et al. 2014..Fitting linear mixed-effects models using lme4. arXiv preprint arXiv:1406.5823. (publicação do pacote lme4)
+
+Burnham, K. & Anderson, D. 2002. Model selection and multimodel inference: a practical information-theoretic approach. 2nd edn. New York: Springer-Verlag. (Livro sobre a abordagem de seleção de modelos baseada em Teoria da Informação)
+
+McGill, B. 2015. Is it a fixed or random effect? Blog Dynamic Ecology. (Uma boa discussão sobre o que são efeitos fixos e aleatórios)
+
+Winter, B. 2013. Linear models and linear mixed effects models in R with linguistic applications. arXiv:1308.5499. (Nesse excelente roteiro, o autor explica modelos lineares e depois apresenta modelos mistos de uma forma bem didática)
+
+
+
+
+
+
+
