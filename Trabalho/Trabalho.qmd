@@ -23,7 +23,6 @@ editor:
 
 Foi realizado um estudo sobre os efeitos do AZT (droga base) na diminuição do desenvolvimento de sintomas do HIV. Um total de 338 adultos infectados com o vírus do HIV, cujos sistemas imunológicos estavam começando a falhar, foram designados aleatoriamente para receber AZT imediatamente ou para esperar até que suas células T evidenciassem uma fraqueza imunológica severa. Os dados apresentados na tabela a seguir mostram o número de sujeitos que desenvolveram ou não sintomas de HIV durante um período de estudo de 3 anos, levando em consideração a raça e se receberam AZT imediatamente ou não.
 
-
 a- Apresente um modelo logit apropriado para esta situação, descrevendo o ajuste realizado e justificando sua escolha.
 b- Interprete os resultados obtidos, realizando estimativas de razões de chances (odds ratios).
 c- Encontre um intervalo de confiança de 95% para a razão de chances de desenvolver sintomas entre aqueles que recebem o tratamento com AZT imediatamente e os que recebem mais tarde.
@@ -60,6 +59,9 @@ summary(modelo_ex8)
 
 Observamos que a variável Raça não é significativa para o surgimento de sintomas da HIV, enquanto o momento de tratamento ser altamente significativo $p=0.00991$.
 
+
+
+
 Podemos pegar o Residual deviance e dividir pelo grau de liberdade para ver se está próximo de 1.
 
 ```{r}
@@ -69,41 +71,136 @@ abs(1-1.3835/1)
 Sua distância até 1 é de 0.3835, vejamos como o modelo se dispõe se removermos esta variável.
 
 ```{r}
-modelo_ex8 <- glm(cbind(Com_Sintomas, Sem_Sintomas) ~ Tratamento,
+modelo_ex8_reduzido <- glm(cbind(Com_Sintomas, Sem_Sintomas) ~ Tratamento,
                   family = binomial(link = "logit"), data = dados_ex8)
 
-summary(modelo_ex8)
+summary(modelo_ex8_reduzido)
 ```
 
 ```{r}
 abs(1-1.4206/2)
 ```
 
+```{r}
+# Teste da Razão de Verossimilhança (Likelihood Ratio Test)
+anova(modelo_ex8, modelo_ex8_reduzido, test = "Chisq")
+```
+
 Temos uma pequena melhoria do modelo, logo, apenas a informação do período de tratamento tem sido relevante para saber sobre os sintomas.
 
+
 ```{r}
-modelo_ex8$fitted.values
+library(broom)
+library(knitr)
+
+# Extrair os resultados, aplicando a exponencial para obter as Odds Ratios
+resultados_tidy <- tidy(modelo_ex8_reduzido, exponentiate = TRUE, conf.int = TRUE)
+
+# Gerar uma tabela elegante
+kable(resultados_tidy, digits = 3, caption = "Estimativas do Modelo Logístico (Odds Ratios)")
+```
+
+
+```{r}
+plot(modelo_ex8_reduzido)
+```
+
+
+
+
+```{r}
+modelo_ex8_reduzido$fitted.values
 ```
 
 
 
 ```{r}
-exp(coef(modelo_ex8))
+exp(coef(modelo_ex8_reduzido))
 ```
 
 
 
 ```{r}
-exp(confint(modelo_ex8))
+exp(confint(modelo_ex8_reduzido))
 ```
 
 
-A razão de chances (Odds Ratio) para a variável TratamentoMais_tarde é de 2.058. 
 
-Isso significa que a chance de desenvolver sintomas do HIV no grupo que adia o trat
-
-amento com AZT é aproximadamente 2,06 vezes a chance do grupo que recebe a medicação imediatamente. O intervalo de 95% de confiança gerado varia de 1,20 a 3,59, nos dando a certeza estatística de que atrasar o tratamento efetivamente aumenta o risco do paciente.
 
 
 A razão de chances (Odds Ratio) para a variável de adiamento do tratamento é de aproximadamente 2,06. Isto significa que a probabilidade de desenvolver sintomas do HIV no grupo que adia o tratamento com AZT é cerca de 2 vezes superior à do grupo que recebe a medicação imediatamente. O intervalo de confiança a 95% varia entre 1,20 e 3,59, o que nos fornece fortes evidências estatísticas de que atrasar o tratamento aumenta significativamente o risco para o paciente.
+
+
+
+
+```{r}
+dados_individuais <- dados_ex8 %>%
+  # Transformar colunas de sintomas em linhas
+  pivot_longer(cols = c(Com_Sintomas, Sem_Sintomas), 
+               names_to = "Status", 
+               values_to = "Contagem") %>%
+  # Multiplicar as linhas com base na contagem
+  uncount(Contagem) %>%
+  # Criar a variável resposta binária (1 = Com Sintomas, 0 = Sem Sintomas)
+  mutate(
+    Sintomas_Num = ifelse(Status == "Com_Sintomas", 1, 0),
+    # Garantir que "Imediatamente" é a categoria de referência
+    Tratamento = factor(Tratamento, levels = c("Imediatamente", "Mais_tarde")),
+    Raca = factor(Raca)
+  )
+
+# Verificar a estrutura (deve retornar 338 linhas)
+str(dados_individuais)
+```
+
+
+```{r}
+# Ajustar os três modelos
+modelo_logit <- glm(Sintomas_Num ~ Tratamento, 
+                    family = binomial(link = "logit"), data = dados_individuais)
+
+summary(modelo_logit)
+```
+
+
+```{r}
+modelo_probit <- glm(Sintomas_Num ~ Tratamento, 
+                     family = binomial(link = "probit"), data = dados_individuais)
+
+modelo_cloglog <- glm(Sintomas_Num ~ Tratamento, 
+                      family = binomial(link = "cloglog"), data = dados_individuais)
+
+# Comparar a qualidade do ajuste
+AIC(modelo_logit, modelo_probit, modelo_cloglog)
+```
+
+
+
+```{r}
+library(boot)
+
+# Função personalizada para extrair a Odds Ratio do modelo ajustado
+obter_or <- function(data, indices) {
+  # O boot envia os índices da reamostragem, precisamos filtrar os dados
+  d <- data[indices, ] 
+  modelo <- glm(Sintomas_Num ~ Tratamento, 
+                family = binomial(link = "logit"), data = d)
+  
+  # Extrair o coeficiente e aplicar a exponencial
+  estimativa_or <- exp(coef(modelo)["TratamentoMais_tarde"])
+  return(estimativa_or)
+}
+
+# Fixar semente para reprodutibilidade
+set.seed(2026)
+
+# Executar o bootstrap com 2000 replicações
+resultados_boot <- boot(data = dados_individuais, statistic = obter_or, R = 2000)
+
+# Visualizar a distribuição das estimativas de reamostragem
+plot(resultados_boot)
+
+# Calcular os intervalos de confiança via Bootstrap (Percentil e BCa)
+boot.ci(resultados_boot, type = c("perc", "bca"))
+```
 
